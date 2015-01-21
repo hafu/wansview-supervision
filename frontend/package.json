@@ -1,0 +1,19 @@
+{
+  "name": "WansViewFrontend",
+  "version": "0.0.0",
+  "description": "Frontend",
+  "main": "wansview.js",
+  "dependencies": {
+    "express": "^4.10.7",
+    "gm": "^1.17.0",
+    "body-parser": "^1.10.1",
+    "pg": "^4.1.1",
+    "socket.io": "^1.2.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

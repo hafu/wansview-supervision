@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>wansview</title>
+		<script src="js/jquery-1.11.1.min.js"></script>
+		<script src="socket.io/socket.io.js"></script>
+		<style>
+body {
+	text-align:center;
+	font-family:monospace;
+	margin:0;
+	padding:0;
+}
+img {
+	padding:0;
+	margin:0;
+	border:0;
+	float:left;
+}
+#test {
+	margin:auto;
+	padding:0;
+}
+
+		</style>
+	</head>
+	<body>
+
+		<div id="test"></div>
+
+		<script>
+//console.log($( window ).width());
+/*
+$( window ).resize(function() {
+var window_width = $( window ).width();
+var window_height = $( window ).height();
+console.log('Window size: ' + window_width + 'x' + window_height);
+});
+ */
+
+// <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABA......" />
+
+
+$( document ).ready(function() {
+	console.log( "document loaded" );
+	$("#test").append("<p>loading ...</p>");
+
+	var socket = io.connect("/image-socket");
+	$("#test").append("<p>sending resolution</p>");
+	socket.emit("resolution", {width: $( window ).width(), height: $( window ).height()});
+
+	socket.on("loading", function (msg) {
+		$("#test").append("<p>" + msg + "</p>");
+	});
+
+	socket.on("error", function (msg) {
+		$("#test").append("<p style=\"color:red;\">" + msg + "</p>");
+	});
+
+	socket.on("progress", function (p) {
+		console.log("progress: " + p);
+		if ($("#progress").length) {
+			$("#progress").text(p + " %");
+		}
+		else {
+			$("#test").append("<p id=\"progress\">" + p + " %</p>");
+		}
+
+	});
+
+	socket.on("images", function (data) {
+		$("#test").empty();
+		$("#test").css("width", Math.floor($( window ).width() / data.imagew) * data.imagew);
+		$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / data.imageh) * data.imageh) / 2);
+		for (i=0; i<data.images.length; i++) {
+			//console.log("image " + i + " data: " + data.images[i]);
+			$("#test").append("<img src=\"data:image/jpeg;base64," + data.images[i] + "\" />");
+		}
+	});
+
+	socket.on("newImage", function (data) {
+		console.log("Got new Image");
+	});
+	
+	
+
+	/*
+	$("#test").css("margin-top", $( window ).height() / 2);
+	$("#test").append("loading ...");
+	$.post("/getRandomImages", {width: $( window ).width(), height: $( window ).height()}, function (data) {
+		if (data) {
+			console.log('got data');
+			console.log(data);
+			if (data.error != null) {
+				console.error(data.error);
+				$("#test").empty();
+				$("#test").append(data.error);
+				$("#test").css("color", "red");
+				return;
+			}
+			$("#test").empty();
+			$("#test").css("width", Math.floor($( window ).width() / data.imagew) * data.imagew);
+			$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / data.imageh) * data.imageh) / 2);
+			for (i=0; i<data.images.length; i++) {
+				//console.log("image " + i + " data: " + data.images[i]);
+				$("#test").append("<img src=\"data:image/jpeg;base64," + data.images[i] + "\" />");
+			}
+		}
+	});
+	var imgCount = Math.floor(($( window ).width() / 160)) * Math.floor(($( window ).height() / 120));
+	console.log("images to load: " + imgCount);
+	$.ajax({
+		url: "/images/" + imgCount,
+		dataType: "json",
+		cache: false,
+		success: function(data) {
+			console.log('got data');
+			console.log(data);
+			if (data.error != null) {
+				console.error(data.error);
+				$("#test").empty();
+				$("#test").append(data.error);
+				$("#test").css("color", "red");
+				return;
+			}
+			$("#test").empty();
+			$("#test").css("width", Math.floor($( window ).width() / 160) * 160);
+			$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / 120) * 120) / 2);
+			for (i=0; i<data.images.length; i++) {
+				//console.log("image " + i + " data: " + data.images[i]);
+				$("#test").append("<img src=\"data:image/jpeg;base64," + data.images[i] + "\" />");
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown){
+			console.error('failed to load data');
+		}
+	});
+	*/
+
+});
+
+		/*
+$( window ).load(function() {
+	console.log( "window loaded" );
+});
+*/
+
+		</script>
+
+
+	</body>
+</html>
