@@ -108,8 +108,6 @@ class DBHelper():
                                 ip_cam_hosts 
                             WHERE 
                                 status = 'unchecked' 
-                            GROUP BY 
-                                hostname 
                             ORDER BY RANDOM() LIMIT %i""" % count)
         self.logger.debug('get_unchecked_hosts(...) -> fetchall(...)')
         r = self.cur.fetchall()
