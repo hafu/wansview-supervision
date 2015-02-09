@@ -53,7 +53,7 @@ class QueueThread(threading.Thread):
         return self.q.full()
 
     def is_minimum_full(self):
-        if self.q.qsize() >= int(self.cconfi.get('daemon', 'queue_size_min')):
+        if self.q.qsize() >= int(self.config.get('daemon', 'queue_size_min')):
             return True
         return False
 
@@ -75,13 +75,14 @@ class QueueThread(threading.Thread):
 QorkerThread Class
 """
 class WorkerThread(threading.Thread):
-    def __init__(self, config, queue_thread, db_helper):
+    def __init__(self, config, queue_thread, db_helper, socket_thread):
         threading.Thread.__init__(self)
         self.logger     = logging.getLogger(self.__class__.__name__)
         self.running    = True
         self.q_thread   = queue_thread
         self.db_helper  = db_helper
         self.config     = config
+        self.st         = socket_thread
 
     def run(self):
         while self.running:
@@ -104,6 +105,7 @@ class WorkerThread(threading.Thread):
             if result['auth_data'] is not None and result['image'] is not None:
                 self.logger.info('Saving image for host %s in country %s' % (item[0],  result['country']))
                 self.db_helper.save_image(item[0], result['auth_data'][0], result['auth_data'][1], result['image'], result['country'])
+                self.st.send('new image ...');
             elif not (result['auth_data'] is None and result['image'] is None):
                 self.logger.error('Something is wrong, auth_data: %s, image: %s for host %s' % (str(result['auth_data']), str(result['image']), item[0]))
             #else:
@@ -183,12 +185,15 @@ if __name__ == '__main__':
     while not q_thread.is_minimum_full():
         time.sleep(1)
 
-
     
+    logging.info('Starting SocketThread')
+    st = SocketThread('localhost', 5567, db_helper, config)
+    st.start()
+
     workers = []
     logging.info('Starting WorkerThreads')
     for i in range(int(config.get('daemon', 'worker_threads'))):
-        t = WorkerThread(config, q_thread, db_helper)
+        t = WorkerThread(config, q_thread, db_helper, st)
         t.start()
         workers.append(t)
     logging.info('WorkerThreads started')

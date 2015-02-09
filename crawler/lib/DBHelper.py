@@ -124,6 +124,15 @@ class DBHelper():
         self.lock.release()
         return r
 
+    def get_random_authed_host(self):
+        self.lock.acquire()
+        self.logger.debug('get_random_authed_host()')
+        self.cur.execute("SELECT hostname, username, password, country FROM ip_cam_images ORDER BY RANDOM() LIMIT 1")
+        r = self.cur.fetchone()
+        self.logger.debug('get_random_authed_host() done')
+        self.lock.release()
+        return r
+
     def close(self):
         self.cur.close()
         self.con.close()

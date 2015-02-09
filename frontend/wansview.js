@@ -19,7 +19,16 @@ var SERVICE_PORT = 5567;
 var SERVICE_HOST = 'localhost';
 
 // db
+
+var DB_HOST = 'localhost';
+/*
+var DB_USER = 'wansview';
 var DB_PASSWD = 'iez6so4B';
+var DB_DB = 'wansview';
+*/
+var DB_USER = 'test';
+var DB_PASSWD = 'test';
+var DB_DB = 'test';
 
 // image
 var IMG_WIDTH = 160;
@@ -34,13 +43,16 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // test
 // pg client
 var pg = require('pg');
-var conString = 'postgres://wansview:' + DB_PASSWD + '@localhost/wansview';
+var conString = 'postgres://' + DB_USER + ':' + DB_PASSWD + '@' + DB_HOST + '/' + DB_DB;
 
 var soc = new net.Socket();
-soc.connect(SERVICE_PORT, SERVICE_HOST, function (err) {
-	if (err) {
-		console.log('Failed to connect to socket');
-	}
+
+soc.connect(SERVICE_PORT, SERVICE_HOST, function () {
+	console.log('Connected to server');
+});
+soc.on('error', function(err) {
+	console.log('Error: ' + err);
+	console.log(err.code);
 });
 
 var resizeImage = function (imageBuffer, size, callback) {
@@ -54,130 +66,6 @@ var resizeImage = function (imageBuffer, size, callback) {
 	});
 }
 
-app.post('/getRandomImages', function (req, res) {
-	console.log('got post');
-	console.log('width: ' + req.body.width);
-	console.log('height: ' + req.body.height);
-
-
-	//var pgClient = new pg.Client(conString);
-	//pgClient.connect(function (err) {
-	pg.connect(conString, function(err, client, done) {
-		if (err) {
-			console.error('could not connect to database', err);
-			res.json({error: 'could not connect to database ' + err});
-		}
-		client.query("SELECT count(*) as count FROM ip_cam_images", function (err, result) {
-			done();
-			if (err) {
-				console.error('error running query', err);
-				res.json({error: 'error running query ' + err});
-			}
-			var imgCountDB = result.rows[0].count;
-			console.log('Images in DB: ' + imgCountDB);
-
-			var new_img_width = IMG_WIDTH;
-			var new_img_height = IMG_HEIGHT;
-			var imgCount = 0;
-			
-			do {
-				new_img_width = new_img_width - 1;
-				new_img_height = Math.round(IMG_HEIGHT / IMG_WIDTH * new_img_width);
-				imgCount = Math.floor(req.body.width / new_img_width) * Math.floor(req.body.height / new_img_height);
-			} while (imgCount < imgCountDB);
-			new_img_width = new_img_width + 1;
-			new_img_height = Math.round(IMG_HEIGHT / IMG_WIDTH * new_img_width);
-			imgCount = Math.floor(req.body.width / new_img_width) * Math.floor(req.body.height / new_img_height);
-			
-			console.log('Images: ' + imgCount);
-			console.log('Width: ' + new_img_width + ' Height: ' + new_img_height);
-			console.log('Loading images');
-			client.query("SELECT replace(encode(image, 'base64'), '\n', '') as image FROM ip_cam_images ORDER BY RANDOM() LIMIT " + imgCount, function (err, result) {
-				done();
-			
-				if (err) {
-					console.error('error running query', err);
-					res.json({error: 'error running query ' + err});
-				}
-				console.log('Got ' + result.rows.length + ' items');
-				// get images
-				console.log('calculating ...');
-				imgs = new Array();
-				for (i=0; i<result.rows.length; i++) {
-					var buf = new Buffer(result.rows[i].image, 'base64');
-					resizeImage(buf, new_img_width, function (err, data) {
-						if (err) {
-							console.error('Error in callback');
-						}
-						console.log('Callback');
-						imgs.push(data.toString('base64'));
-						if (imgs.length == result.rows.length) {
-							console.log('All images done');
-							console.log('Sending json');
-							res.json({imagew: new_img_width, imageh: new_img_height,images: imgs});
-						}
-						else {
-							console.log(imgs.length + ' proceeded');
-						}
-					});
-			
-				}
-				//pgClient.end();
-			
-			});
-			
-		});
-	});
-
-});
-
-app.get('/images/:count', function (req, res) {
-	console.log('Getting ' + req.params.count + ' images');
-	var pgClient = new pg.Client(conString);
-	pgClient.connect(function (err) {
-		if (err) {
-			console.error('could not connect to database', err);
-			res.json({error: 'could not connect to database ' + err});
-		}
-		// encode(byteaColumn,'base64')
-		pgClient.query("SELECT replace(encode(image, 'base64'), '\n', '') as image FROM ip_cam_images ORDER BY RANDOM() LIMIT " + req.params.count *7, function (err, result) {
-			if (err) {
-				console.error('error running query', err);
-				res.json({error: 'error running query ' + err});
-			}
-			console.log('Got ' + result.rows.length + ' items');
-			// get images
-			imgs = new Array();
-			for (i=0; i<result.rows.length; i++) {
-				var buf = new Buffer(result.rows[i].image, 'base64');
-				resizeImage(buf, 60, function (err, data) {
-					if (err) {
-						console.error('Error in callback');
-					}
-					console.log('Callback');
-					imgs.push(data.toString('base64'));
-					if (imgs.length == result.rows.length) {
-						console.log('All images done');
-						console.log('Sending json');
-						res.json({images: imgs});
-					}
-					else {
-						console.log(imgs.length + ' proceeded');
-					}
-				});
-			
-			}
-			/*
-			console.log('imgs: ', imgs.length);
-			console.log('Sending json');
-			res.json({images: imgs});
-			*/
-			pgClient.end();
-			
-		});
-	});
-});
-
 var statsnsp = io.of('/stats-socket');
 statsnsp.on('connection', function (socket) {
 	console.log('New connection');
@@ -187,6 +75,7 @@ statsnsp.on('connection', function (socket) {
 			console.error('could not connect to database', err);
 			socket.emit('error', 'could not connect to database ' + err);
 		}
+		// countries
 		client.query("select country, count(*) as count from ip_cam_images group by country order by count desc", function (err, result) {
 			done();
 			if (err) {
@@ -195,6 +84,7 @@ statsnsp.on('connection', function (socket) {
 			}
 			socket.emit('stats', result.rows);
 		});
+		// 
 	});
 
 
@@ -203,9 +93,15 @@ statsnsp.on('connection', function (socket) {
 	});
 });
 
+var usrCount = 0;
 var imgnsp = io.of('/image-socket');
 imgnsp.on('connection', function (socket) {
 	console.log('New connection');
+	usrCount++;
+
+	soc.write('users:' + usrCount);
+
+
 	var new_img_width = IMG_WIDTH;
 	var new_img_height = IMG_HEIGHT;
 	
@@ -265,7 +161,9 @@ imgnsp.on('connection', function (socket) {
 							perc = perc_now;
 							console.log(perc);
 							socket.emit('progress', perc);
+							socket.emit('loading', 'Lala ' + i);
 						}
+						//console.log('Image ' + i);
 						var buf = new Buffer(result.rows[i].image, 'base64');
 						resizeImage(buf, new_img_width, function (err, data) {
 							if (err) {
@@ -280,7 +178,7 @@ imgnsp.on('connection', function (socket) {
 								socket.emit('images', {imagew: new_img_width, imageh: new_img_height,images: imgs});
 							}
 							else {
-								//console.log(imgs.length + ' proceeded');
+							//	console.log(imgs.length + ' proceeded');
 							}
 						});
 				
@@ -295,37 +193,31 @@ imgnsp.on('connection', function (socket) {
 	});
 
 	soc.on('data', function (data) {
-		if (data == 'ping') {
-			console.log('just a ping');
+		//console.log('Got data from server: ' + data.toString());
+		try {
+			j = JSON.parse(data.toString());
+			// resize image
+			var buf = new Buffer(j.image, 'base64');
+			resizeImage(buf, new_img_width, function (err, data) {
+				if (err) {
+					console.error('Error in callback');
+				}
+				console.log('send new image');
+				socket.emit('newImage', {image: data.toString('base64')});
+			});
+		} catch (e) {
+			console.error('JSON error: ' + e);
 		}
-		else {
-			//console.log('other data: ' + data);
-			var jsonData = JSON.parse(data);
-			//console.log('JS obj: ' + obj.newImage);
-			if (jsonData.newImage) {
-				var buf = new Buffer(jsonData.newImage, 'base64');
-				resizeImage(buf, new_img_width, function (err, data) {
-					if (err) {
-						console.error('Error in callback');
-					}
-					socket.emit('newImage', {image: data.toString('base64')});
-				});
-			}
-		}
-		// resize image
-		/*
-		ar buf = new Buffer(data.newImage, 'base64');
-		resizeImage(buf, new_img_width, function (err, data) {
-			if (err) {
-				console.error('Error in callback');
-			}
-			socket.emit('newImage', {image: data.toString('base64')});
-		});
-		*/
+		
+		//console.log('JSON: ' + j.toString());
+		//console.log('JSON image: ' + j.image);
 	});
 
 	socket.on('disconnect', function () {
 		console.log('Connection closed');
+		usrCount--;
+		console.log('Users: ' + usrCount);
+		soc.write('users:' + usrCount);
 	});
 
 });
