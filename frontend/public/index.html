@@ -23,20 +23,58 @@ img {
 	margin:auto;
 	padding:0;
 	overflow:hidden;
-	background-color:green;
+/*	background-color:#00ff00;*/
 }
 
 #sidebar {
-	width:350px;
 	float:left;
-	background-color:red;
+	/*background-color:red;*/
+	/*text-align:left;*/
+}
+
+#sidebar .unhide {
+	display: none;
+}
+
+#wrapper {
+	width:300pt;
+}
+
+#piechart {
+}
+#stats p {
+	/*
+	text-align:left;
+	margin-left:10pt;
+		*/
 }
 
 		</style>
 	</head>
 	<body>
-		<div id="sidebar">Stats
-			<div id="piechart"></div>
+		<div id="sidebar">
+			<div id="wrapper">
+			<!--
+			<div id="menue">
+				<h1>menue</h1>
+			</div>
+			--!>
+			<div id="stats">
+				<h1>stats</h1>
+				<h2>numbers</h2>
+				<p><span class="checkedhosts">n/a</span> of <span class="hosts">n/a</span> possible hosts checked</p>
+				<p>
+				authorized: <span class="authorized">n/a</span><br />
+				unauthorized: <span class="unauthorized">n/a</span><br />
+				timeout: <span class="timeout">n/a</span><br />
+				unexcepted: <span class="unexcepted">n/a</span><br />
+				</p>
+				<h2>countries</h2>
+				<div id="piechart"></div>
+			</div>
+			<a href="#" class="hide">« hide sidebar</a>
+			</div>	
+			<a href="#" class="unhide">»</a>
 		</div>
 		<div id="test"></div>
 
@@ -54,16 +92,33 @@ console.log('Window size: ' + window_width + 'x' + window_height);
 google.load('visualization', '1.0', {'packages':['corechart']});
 google.setOnLoadCallback(pieChart);
 
+var imageSocket;
 function pieChart() {
 	var data = new google.visualization.DataTable();
 	data.addColumn('string', 'Country');
 	data.addColumn('number', 'Count');
+	
+	var opts = {
+		//'title':'countries',
+		'fontName':'monospace', 
+		//'chartArea.width': $("#sidebar").width(),
+		//'chartArea.height': $("#sidebar").width(),
+		//'width': $("#sidebar").width(),
+		'height': $("#sidebar").width(),
+		//'chartArea': {'top': 0},
+		'chartArea': {'top':20,'width':'75%','height':'75%'},
+		//'chartArea.top': 10,
+		'legend':{
+			//'position':'labeled'
+			//'position':'none'
+			'position':'bottom'
+		}}; 
 
-	var socket = io.connect("/stats-socket");
-	socket.on("stats", function (msg) {
+	var socket = io.connect("http://" + window.location.hostname + ":8080/stats-socket");
+	socket.on("country-stats", function (msg) {
 		var cnt = 0;
 		for (i=0; i<msg.length; i++) {
-			console.log(msg[i]);
+			//console.log(msg[i]);
 			if (i < 20) {
 				data.addRow([msg[i].country, parseInt(msg[i].count)]);
 			}
@@ -72,42 +127,54 @@ function pieChart() {
 			}
 		}
 		var chart = new google.visualization.PieChart(document.getElementById('piechart'));
-		 chart.draw(data);
+		chart.draw(data, opts);
 	});
+
+	socket.on("number-stats", function (msg) {
+		var sum_all = 0;
+		var sum_chk = 0;
+		for (i=0; i<msg.length; i++) {
+			sum_all += parseInt(msg[i].count);
+			if ( $("." + msg[i].status).length) {
+				$("." + msg[i].status).text(msg[i].count)
+			}
+			if (msg[i].status != "unchecked") {
+				sum_chk += parseInt(msg[i].count);
+			}
+			$(".checkedhosts").text(sum_chk);
+			$(".hosts").text(sum_all);
+		}
+	});
+
 }
 
-var imageCount = 0;
-$( document ).ready(function() {
-	console.log( "document loaded" );
+
+//$( document ).ready(function() {
+function loadImages() {
+	var imageCount = 0;
+	$("#test").empty();
+	$("#test").css("background-color", "");
 	$("#test").append("<p>loading ...</p>");
 
-	var socket = io.connect("/image-socket");
+	//var socket = io.connect("/image-socket");
 	$("#test").append("<p>sending resolution</p>");
-	//socket.emit("resolution", {width: $( window ).width(), height: $( window ).height()});
-	socket.emit("resolution", {width: $( window ).width() - $("#sidebar").width(), height: $( window ).height()});
+	//imageSocket.emit("resolution", {width: $( window ).width(), height: $( window ).height()});
+	imageSocket.emit("resolution", {width: $( window ).width() - $("#sidebar").width(), height: $( window ).height()});
 
-	socket.on("loading", function (msg) {
+	//console.log({width: $( window ).width() - $("#sidebar").width(), height: $( window ).height()});
+	//console.log("Sidebar: " + $("#sidebar").width());
+
+	imageSocket.on("loading", function (msg) {
 		$("#test").append("<p>" + msg + "</p>");
 	});
 
-	socket.on("error", function (msg) {
+	imageSocket.on("error", function (msg) {
 		$("#test").append("<p style=\"color:red;\">" + msg + "</p>");
 	});
-
-	socket.on("progress", function (p) {
-		console.log("progress: " + p);
-		if ($("#progress").length) {
-			$("#progress").text(p + " %");
-		}
-		else {
-			$("#test").append("<p id=\"progress\">" + p + " %</p>");
-		}
-
-	});
-
-	socket.on("images", function (data) {
+	imageSocket.on("images", function (data) {
 		imageCount = data.images.length;
 		$("#test").empty();
+		$("#test").css("background-color", "#00ff00");
 		$("#test").css("width", Math.floor(($( window ).width() - $("#sidebar").width()) / data.imagew) * data.imagew);
 		//$("#test").css("width", Math.floor($( window ).width() / data.imagew) * data.imagew);
 		$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / data.imageh) * data.imageh) / 2);
@@ -117,7 +184,7 @@ $( document ).ready(function() {
 		}
 	});
 
-	socket.on("newImage", function (data) {
+	imageSocket.on("newImage", function (data) {
 		console.log("Got new Image");
 		if (imageCount > 0 ) {
 			var r = Math.floor(Math.random() * imageCount) + 1;
@@ -131,70 +198,30 @@ $( document ).ready(function() {
 			//$("#img" + r).attr("src", "data:image/jpeg;base64," + data.image);
 		}
 	});
-	
-	
+}
+//});
 
-	/*
-	$("#test").css("margin-top", $( window ).height() / 2);
-	$("#test").append("loading ...");
-	$.post("/getRandomImages", {width: $( window ).width(), height: $( window ).height()}, function (data) {
-		if (data) {
-			console.log('got data');
-			console.log(data);
-			if (data.error != null) {
-				console.error(data.error);
-				$("#test").empty();
-				$("#test").append(data.error);
-				$("#test").css("color", "red");
-				return;
-			}
-			$("#test").empty();
-			$("#test").css("width", Math.floor($( window ).width() / data.imagew) * data.imagew);
-			$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / data.imageh) * data.imageh) / 2);
-			for (i=0; i<data.images.length; i++) {
-				//console.log("image " + i + " data: " + data.images[i]);
-				$("#test").append("<img src=\"data:image/jpeg;base64," + data.images[i] + "\" />");
-			}
-		}
+$( document ).ready(function() {
+	console.log( "document loaded" );
+	imageSocket = io.connect("http://" + window.location.hostname + ":8080/image-socket");
+	loadImages();
+
+	// hide sidebar
+	$(".hide").click(function() {
+		$("#wrapper" ).slideToggle(function() {
+			$(".unhide").css("display", "inline");
+			loadImages();
+		});
 	});
-	var imgCount = Math.floor(($( window ).width() / 160)) * Math.floor(($( window ).height() / 120));
-	console.log("images to load: " + imgCount);
-	$.ajax({
-		url: "/images/" + imgCount,
-		dataType: "json",
-		cache: false,
-		success: function(data) {
-			console.log('got data');
-			console.log(data);
-			if (data.error != null) {
-				console.error(data.error);
-				$("#test").empty();
-				$("#test").append(data.error);
-				$("#test").css("color", "red");
-				return;
-			}
-			$("#test").empty();
-			$("#test").css("width", Math.floor($( window ).width() / 160) * 160);
-			$("#test").css("margin-top", ($( window ).height() - Math.floor($( window ).height() / 120) * 120) / 2);
-			for (i=0; i<data.images.length; i++) {
-				//console.log("image " + i + " data: " + data.images[i]);
-				$("#test").append("<img src=\"data:image/jpeg;base64," + data.images[i] + "\" />");
-			}
-		},
-		error: function(jqXHR, textStatus, errorThrown){
-			console.error('failed to load data');
-		}
+
+	// unhide sidebar
+	$(".unhide").click(function() {
+		$("#wrapper" ).slideToggle(function() {
+			$(".unhide").css("display", "none");
+			loadImages();
+		});
 	});
-	*/
-
 });
-
-		/*
-$( window ).load(function() {
-	console.log( "window loaded" );
-});
-*/
-
 		</script>
 
 

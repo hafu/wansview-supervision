@@ -4,7 +4,8 @@ var app = express();
 var net = require('net')
 
 // soccket.io
-var server = require('http').Server(app);
+//var server = require('http').Server(app);
+var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 
 // gm
@@ -21,18 +22,19 @@ var SERVICE_HOST = 'localhost';
 // db
 
 var DB_HOST = 'localhost';
-/*
+
 var DB_USER = 'wansview';
 var DB_PASSWD = 'iez6so4B';
 var DB_DB = 'wansview';
-*/
+/*
 var DB_USER = 'test';
 var DB_PASSWD = 'test';
 var DB_DB = 'test';
-
+*/
 // image
 var IMG_WIDTH = 160;
 var IMG_HEIGHT = 120;
+var MAX_IMAGES = 2000;
 
 // no layouts
 app.set("view options", {layout: false});
@@ -82,9 +84,18 @@ statsnsp.on('connection', function (socket) {
 				console.error('query error', err);
 				socket.emit('error', 'querry error ' + err);
 			}
-			socket.emit('stats', result.rows);
+			socket.emit('country-stats', result.rows);
 		});
-		// 
+		// numbers
+		client.query("select status, count(*) from ip_cam_hosts group by status order by count(*)", function (err, result) {
+			done();
+			if (err) {
+				console.error('query error', err);
+				socket.emit('error', 'querry error ' + err);
+			}
+			//console.log(result.rows);
+			socket.emit('number-stats', result.rows);
+		});
 	});
 
 
@@ -102,10 +113,12 @@ imgnsp.on('connection', function (socket) {
 	soc.write('users:' + usrCount);
 
 
-	var new_img_width = IMG_WIDTH;
-	var new_img_height = IMG_HEIGHT;
+	//var new_img_width = IMG_WIDTH;
+	//var new_img_height = IMG_HEIGHT;
 	
 	socket.on('resolution', function (msg) {
+		var new_img_width = IMG_WIDTH;
+		var new_img_height = IMG_HEIGHT;
 		console.log('Got resolution: ' + msg.width);
 
 		//socket.emit('loading', 'connecting to database');
@@ -124,6 +137,11 @@ imgnsp.on('connection', function (socket) {
 				}
 				var imgCountDB = result.rows[0].count;
 				console.log('Images in DB: ' + imgCountDB);
+				if (imgCountDB > MAX_IMAGES) {
+					var imgCountMax = MAX_IMAGES;
+				} else {
+					var imgCountMax = imgCountDB;
+				}
 	
 				var imgCount = 0;
 				
@@ -131,7 +149,7 @@ imgnsp.on('connection', function (socket) {
 					new_img_width = new_img_width - 1;
 					new_img_height = Math.round(IMG_HEIGHT / IMG_WIDTH * new_img_width);
 					imgCount = Math.floor(msg.width / new_img_width) * Math.floor(msg.height / new_img_height);
-				} while (imgCount < imgCountDB);
+				} while (imgCount < imgCountMax);
 				new_img_width = new_img_width + 1;
 				new_img_height = Math.round(IMG_HEIGHT / IMG_WIDTH * new_img_width);
 				imgCount = Math.floor(msg.width / new_img_width) * Math.floor(msg.height / new_img_height);
@@ -160,8 +178,8 @@ imgnsp.on('connection', function (socket) {
 						if (perc != perc_now) {
 							perc = perc_now;
 							console.log(perc);
-							socket.emit('progress', perc);
-							socket.emit('loading', 'Lala ' + i);
+							//socket.emit('progress', perc);
+							//socket.emit('loading', 'Lala ' + i);
 						}
 						//console.log('Image ' + i);
 						var buf = new Buffer(result.rows[i].image, 'base64');
@@ -170,6 +188,7 @@ imgnsp.on('connection', function (socket) {
 								console.error('Error in callback');
 							}
 							//console.log('Callback');
+							//socket.emit('Callback...')
 							imgs.push(data.toString('base64'));
 							if (imgs.length == result.rows.length) {
 								console.log('All images done');
@@ -194,6 +213,9 @@ imgnsp.on('connection', function (socket) {
 
 	soc.on('data', function (data) {
 		//console.log('Got data from server: ' + data.toString());
+		console.log('Got new image from server');
+		console.log('New img width' + typeof new_img_width);
+		if (typeof new_img_width !== 'undefined') {
 		try {
 			j = JSON.parse(data.toString());
 			// resize image
@@ -207,6 +229,7 @@ imgnsp.on('connection', function (socket) {
 			});
 		} catch (e) {
 			console.error('JSON error: ' + e);
+		}
 		}
 		
 		//console.log('JSON: ' + j.toString());

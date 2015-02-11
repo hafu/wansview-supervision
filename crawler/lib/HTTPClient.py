@@ -80,6 +80,9 @@ class HTTPClient():
                 self.logger.debug('Not found %s' % e)
             else:
                 self.logger.error('Unknown HTTPError: %s' % e)
+        except Exception as inst:
+            self.logger.error('ERROR: %s' % str(type(inst)))
+            self.logger.error('ERROR args: %s ' % str(inst.args))
         except:
             self.logger.error('Unexpected ERROR!')
             return None
