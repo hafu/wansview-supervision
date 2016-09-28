@@ -4,7 +4,7 @@ This is a project was developed at the Hacker Art class at the University of App
 
 It demonstrates the insecurity of cheap IP Cameras, especially wansview devices. But also other manufacturers maybe affected.
 
-** The project status shows what is possible and is not stable **
+**The project status shows what is possible and is not stable**
 
 ## concept
 
@@ -33,3 +33,9 @@ The implementation is very beta. It works, but needs a lot of improvements.
 * code cleanup
 * frontend rewrite (maybe other language)
 * async image processing suboptimal, for every image one task!
+
+## Screenshots
+
+![screenshot without stats](/screenshots/screenshot_nostats_low.png)
+
+![screenshot with stats](/screenshots/screenshot_stats_low.png)
