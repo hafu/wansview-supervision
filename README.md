@@ -1,6 +1,6 @@
 # wansview supervision
 
-This is a project was developed at the Hacker Art class at the University of Applied Sciences (HTW), Berlin, Germany.
+This project was developed at the Hacker Art class at the University of Applied Sciences (HTW), Berlin, Germany.
 
 It demonstrates the insecurity of cheap IP Cameras, especially wansview devices. But also other manufacturers maybe affected.
 
